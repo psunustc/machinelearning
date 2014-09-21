@@ -1,0 +1,66 @@
+---
+title: "ML Project"
+author: "David Peng"
+date: "September 21, 2014"
+output: html_document
+---
+
+##Abstact
+
+##Target
+We are using the use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict their different ways to perform the barbell lifts. Note that the number of ways to perform the lifts is predetermined to be five, which means the prediction is a supervised classification learning on the structured data set. The goal of this project is to use the data to set up a model to predict the lift categories the 20 unclassified data belongs to. The whole training data set has 19622 observations of 160 variables with the 'classe' column that holds the labeled lift category.
+
+##Method and results
+After loading the training and testing data, I checked the testing dataset first. It has 20 rows, and is the final dataset my model will work on. So I will first try to eliminate variables based on the testing data. It has regular shape, which means the 'NA's and ""'s hold the same places for each row. I delete this columns in testing and also traning data sets. Then they both are left with 60 columns including the labels. A second review of both data sets tells me that the first 8 columns are non-physical data, such as names fo participants, time tag, window number, etc. So I also delete these columns. Then the data set have 53 remaining columns. A 'na' and a '""' (length 0 and 1 items) check of the data returns 0. So there is no further need such as smoothing to be performed on the data. They are both cleaned.
+
+Since it is a classification problem, I have several choices such as K Nearest Neighbors, Generalized Linear Model, Support Vector Machines, and Random Forest, etc to try on. I use a subset of 2000 data to do the test on GLM and RF algorithms. It seems Random Forest gives a good result. I use default settings of RF. I then choose Random Forest to train the 75% of the training data set, and the test on the 25% returns a 100% classification rate. Then the final work is to use the model to work on the 20 new data. After submission, the model gets 100% correctness again.
+
+Attached is the r code and the summary of the testing results (on the 25% untrained data).
+
+```{r, echo=TRUE, cache=TRUE}
+library(randomForest)
+library(caret)
+
+if(! 'pml-training.csv' %in% dir()) download.file(url = 
+        'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv',
+        destfile = './')
+if(! 'pml-testing.csv' %in% dir()) download.file(url = 
+        'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv',
+        destfile = './')
+data <- read.csv(file = 'pml-training.csv', stringsAsFactors = F, header = T, 
+                 sep = ',', na.strings = c('','NA'))
+target <- read.csv(file = 'pml-testing.csv', stringsAsFactors = F, header = T, 
+                  sep = ',', na.strings = c('','NA'))
+#delete na's
+id <- which(!is.na(target[1,]))
+#delete physically nonsense data, such as tester names, window numbers, time tag, etc
+data <- data[,id[8:60]]
+target <- target[,id[8:60]]
+#seeking further methods to decrease df of variables, by PCA
+data$classe <- as.factor(data$classe)
+#partition data
+inTrain <- createDataPartition(y = data$classe, p = .75, list = F)
+training <- data[ inTrain, ]
+testing <- data[-inTrain, ]
+#train the model
+rfFit <- randomForest(x = data[, 1:(ncol(data)-1)],
+                      y = data$classe,
+                      importance = T,
+                      na.action = na.omit #if any
+                      )
+#predict on the testing data
+plsClass <- predict(rfFit, newdata = testing)
+#see test results
+confusionMatrix(testing$classe, plsClass)
+#predict on the new data
+#ans <- as.character(predict(rfFit, newdata = target))
+#write out results
+#pml_write_files <- function(x){
+#    n = length(x)
+#    for(i in 1:n){
+#        filename = paste("problem_id_",i,".txt")
+#        write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+#    }
+#}
+#pml_write_files(ans)
+```
